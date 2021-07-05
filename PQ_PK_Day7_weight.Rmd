@@ -1,0 +1,406 @@
+---
+title: "Primaquine PK analysis"
+author: "James Watson"
+date: "5/21/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, cache.comments = FALSE,
+                      echo = TRUE, include = TRUE, 
+                      fig.width = 8, fig.height = 8,
+                      fig.pos = 'H',dev = 'png', dpi = 300)
+```
+
+
+```{r}
+library(mgcv)
+library(survival)
+sessionInfo()
+```
+
+
+```{r}
+pmq_PK = read.csv('BPD_curated.csv')
+Combined_Time_Data = read.csv('Time_to_event.csv')
+cols = RColorBrewer::brewer.pal(n = 3, name = 'Dark2')
+
+writeLines(sprintf('There are a total of %s unique patients with data', length(unique(pmq_PK$patientid))))
+
+sum(is.na(pmq_PK$pk_cpmq) & is.na(pmq_PK$pk_pmq))
+sum(!is.na(pmq_PK$pk_pip) | !is.na(pmq_PK$pk_cq))
+
+
+# Patients who stopped before day 7
+id_stopped = c(131, # last dose day 4
+               301, # last dose day 5
+               379, # last dose day 5
+               397, # last dose day 5
+               627) # last dose day 5
+which(id_stopped %in% pmq_PK$patientid)
+ind_rm = pmq_PK$patientid %in% id_stopped
+writeLines(sprintf('We remove %s data points from %s patients',
+                   sum(ind_rm), length(id_stopped)))
+pmq_PK = pmq_PK[!ind_rm, ]
+```
+
+
+
+```{r}
+par(las=1, mfrow=c(1,2))
+plot(pmq_PK$weight, pmq_PK$dailypmqdose,xlab='weight (kg)', 
+     ylab='Daily dose (mg)',
+     col = pmq_PK$high_dose+1)
+plot(pmq_PK$weight, pmq_PK$mgkgdose,
+     xlab='weight (kg)', ylab='Daily dose (mg/kg)', col = pmq_PK$high_dose+1)
+
+sum(!duplicated(pmq_PK$patientid))
+table(pmq_PK$weight[!duplicated(pmq_PK$patientid)]<=10)
+table(pmq_PK$weight[!duplicated(pmq_PK$patientid)]<=5)
+```
+
+fit models
+```{r models}
+pmq_PK$ratio=log10(pmq_PK$pk_cpmq)-log10(pmq_PK$pk_pmq)
+pmq_PK$patientid = as.factor(pmq_PK$patientid)
+
+mod_ratio = gam(ratio ~ s(log10(weight), k=3)+
+                  mgkgdose+partner_drug+daysonpq+fct+
+                  s(patientid, bs = 're'), 
+                data = pmq_PK)
+mod_pmq = gam(log10(pk_pmq) ~ s(log10(weight), k=3)+
+                mgkgdose+partner_drug+daysonpq+fct+
+                s(patientid, bs = 're'), 
+              data = pmq_PK)
+mod_cpmq = gam(log10(pk_cpmq) ~ s(log10(weight), k=3)+
+                 mgkgdose+partner_drug+daysonpq+fct+
+                 s(patientid, bs = 're'), 
+               data = pmq_PK)
+```
+
+
+predictions
+```{r}
+predict(mod_pmq,
+        data.frame(weight=10:90,mgkgdose=0.5,
+                   partner_drug=1,
+                   daysonpq=1,fct=0,
+                   patientid=0),
+        exclude = "s(patientid)")
+
+```
+
+
+
+```{r day7_summary_results}
+par(las=1, mfrow=c(2,2), family='serif', cex.lab=1.3, cex.axis=1.3)
+jws=jitter(log10(pmq_PK$weight),amount = .015)
+plot(jws,pmq_PK$mgkgdose,panel.first=grid(),
+     xlab='weight (kg)', ylab='Daily dose (mg/kg)',xaxt='n',
+     col = cols[pmq_PK$partner_drug+1],yaxt='n')
+mtext(text = 'A', side = 3, adj = 0, line=2, cex=1.5)
+axis(1, at = log10(c(10,15,30,60)), labels = c(10,15,30,60))
+axis(2, at = c(0.2,0.5,1,1.4))
+abline(h = c(0.5,1))
+legend('topleft', col=cols[1:2], pch=1,
+       legend = c('DHA-piperaquine','Chloroquine'), inset = 0.06)
+points(jws, pmq_PK$mgkgdose,
+       col = cols[pmq_PK$partner_drug+1])
+
+plot(log10(pmq_PK$weight), log10(pmq_PK$pk_pmq), 
+     col = cols[pmq_PK$partner_drug+1], xlab='weight (kg)', 
+     ylab = 'Primaquine (ng/mL)', yaxt='n',
+     panel.first=grid(), xaxt='n')
+axis(2, at = seq(0,2.5, length.out = 5), 
+     labels = round(10^seq(0,2.5, length.out = 5)))
+axis(1, at = log10(c(1.5,3,10,30)), labels = c(1.5,3,10,30))
+mtext(text = 'B', side = 3, adj = 0, line=2, cex=1.5)
+
+summary(mod_pmq)
+lines(log10(10:90), predict(mod_pmq,
+                            data.frame(weight=10:90,mgkgdose=0.5,
+                                       partner_drug=1,
+                                       daysonpq=1,fct=0,
+                                       patientid=0),
+                            exclude = "s(patientid)"),
+      lwd=3)
+lines(log10(10:90), predict(mod_pmq,
+                            data.frame(weight=10:90,mgkgdose=1,
+                                       partner_drug=1,
+                                       daysonpq=1,fct=0,
+                                       patientid=0),
+                            exclude = "s(patientid)"),
+      lwd=3, lty=2)
+
+plot(log10(pmq_PK$weight), log10(pmq_PK$pk_cpmq), 
+     col = cols[pmq_PK$partner_drug+1], xlab='weight (kg)', 
+     ylab = 'Carboxyprimaquine (ng/mL)', yaxt='n',
+     panel.first=grid(), xaxt='n')
+axis(2, at = seq(1,3.5, length.out = 5), 
+     labels = round(10^seq(1,3.5, length.out = 5)))
+axis(1, at = log10(c(1.5,3,10,30)), labels = c(1.5,3,10,30))
+mtext(text = 'C', side = 3, adj = 0, line=2, cex=1.5)
+
+
+summary(mod_cpmq)
+lines(log10(10:90), predict(mod_cpmq,
+                            data.frame(weight=10:90,mgkgdose=0.5,
+                                       partner_drug=1,
+                                       daysonpq=1,fct=0,
+                                       patientid=0),
+                            exclude = "s(patientid)"),
+      lwd=3)
+predict(mod_cpmq, data.frame(weight=c(5,30),
+                             mgkgdose=0.5,
+                             partner_drug=1,
+                             daysonpq=1,fct=0,
+                             patientid=0),
+        exclude = "s(patientid)")
+
+predict(mod_pmq, data.frame(weight=c(5,30),
+                            mgkgdose=0.5,
+                            partner_drug=1,
+                            daysonpq=1,fct=0,
+                            patientid=0),
+        exclude = "s(patientid)")
+
+lines(log10(10:90), predict(mod_cpmq,
+                            data.frame(weight=10:90,mgkgdose=1,
+                                       partner_drug=1,
+                                       daysonpq=1,fct=0,
+                                       patientid=0),
+                            exclude = "s(patientid)"),
+      lwd=3, lty=2)
+
+
+## Ratio
+plot(log10(pmq_PK$weight), pmq_PK$ratio,
+     panel.first=grid(),yaxt='n',xaxt='n',
+     xlab='weight (kg)', ylab='Carboxyprimaquine/Primaquine ratio',
+     col = cols[pmq_PK$partner_drug+1])
+axis(2, at =  seq(0.5,2.5, length.out = 6), 
+     labels = round(10^seq(0.5,2.5, length.out = 6)))
+axis(1, at = log10(c(1.5,3,10,30)), labels = c(1.5,3,10,30))
+mtext(text = 'D', side = 3, adj = 0,line = 2, cex=1.5)
+
+summary(mod_ratio)
+lines(log10(10:90), predict(mod_ratio,
+                            data.frame(weight=10:90,mgkgdose=0.5,
+                                       partner_drug=1,
+                                       daysonpq=1,fct=0,
+                                       patientid=0),
+                            exclude = "s(patientid)"),
+      lwd=3)
+lines(log10(10:90), predict(mod_ratio,
+                            data.frame(weight=10:90,mgkgdose=1,
+                                       partner_drug=1,
+                                       daysonpq=1,fct=0,
+                                       patientid=0),
+                            exclude = "s(patientid)"),
+      lwd=3, lty=2)
+```
+
+
+```{r}
+pmq_PK$log10_CQ[which(pmq_PK$log10_CQ<1)] = NA
+pmq_PK$log10_Pip[which(pmq_PK$log10_Pip<1)] = NA
+
+par(mfrow=c(1,2))
+hist(pmq_PK$log10_CQ, xlab='log10 CQ+D-CQ concentration',main='')
+hist(pmq_PK$log10_Pip, xlab='log10 Pip concentration',main='')
+
+# effect of chloroquine
+mod_pmq_CQ = gam(log10(pk_pmq) ~ s(log10(weight), k=3)+
+                   mgkgdose+daysonpq+fct+log10_CQ+
+                   s(patientid, bs = 're'), 
+                 data = pmq_PK)
+xx = summary(mod_pmq_CQ)
+10^xx$p.coeff['log10_CQ']
+round(10^(xx$p.coeff['log10_CQ'] + c(-1,1)*xx$se['log10_CQ']),1)
+xx$p.pv['log10_CQ']
+
+mod_cpmq_CQ = gam(log10(pk_cpmq) ~ s(log10(weight), k=3)+
+                    mgkgdose+daysonpq+fct+log10_CQ+
+                    s(patientid, bs = 're'), 
+                  data = pmq_PK)
+xx = summary(mod_cpmq_CQ)
+10^xx$p.coeff['log10_CQ']
+round(10^(xx$p.coeff['log10_CQ'] + c(-1,1)*xx$se['log10_CQ']),1)
+xx$p.pv['log10_CQ']
+
+
+mod_ratio_CQ = gam(ratio ~ s(log10(weight), k=3)+
+                     mgkgdose+daysonpq+fct+log10_CQ+
+                     s(patientid, bs = 're'), 
+                   data = pmq_PK)
+xx = summary(mod_ratio_CQ)
+10^xx$p.coeff['log10_CQ']
+round(10^(xx$p.coeff['log10_CQ'] + c(-1,1)*xx$se['log10_CQ']),1)
+xx$p.pv['log10_CQ']
+
+
+# effect of piperaquine
+mod_pmq_Pip = gam(log10(pk_pmq) ~ s(log10(weight), k=3)+
+                    mgkgdose+daysonpq+fct+log10_Pip, 
+                  data = pmq_PK)
+xx = summary(mod_pmq_Pip)
+10^xx$p.coeff['log10_Pip']
+round(10^(xx$p.coeff['log10_Pip'] + c(-1,1)*xx$se['log10_Pip']),1)
+xx$p.pv['log10_Pip']
+
+mod_cpmq_Pip = gam(log10(pk_cpmq) ~ s(log10(weight), k=3)+
+                     mgkgdose+daysonpq+fct+log10_Pip, 
+                   data = pmq_PK)
+xx = summary(mod_cpmq_Pip)
+10^xx$p.coeff['log10_Pip']
+round(10^(xx$p.coeff['log10_Pip'] + c(-1,1)*xx$se['log10_Pip']),1)
+xx$p.pv['log10_Pip']
+
+mod_ratio_Pip = gam(ratio ~ s(log10(weight), k=3)+
+                      mgkgdose+daysonpq+fct+log10_Pip, 
+                    data = pmq_PK)
+summary(mod_ratio_Pip)
+```
+
+
+
+Plot against residuals******
+```{r ASscore_residuals, fig.width=8, fig.height=6}
+ind = !is.na(pmq_PK$ASscore)
+sum(!duplicated(pmq_PK$patientid) & ind)
+table(pmq_PK$ASscore[!duplicated(pmq_PK$patientid)])
+
+pmq_PK$pred_pmq[!is.na(pmq_PK$pk_pmq)] = predict(mod_pmq)
+pmq_PK$res_pmq = log10(pmq_PK$pk_pmq)-pmq_PK$pred_pmq
+
+pmq_PK$pred_cpmq[!is.na(pmq_PK$pk_cpmq)] = predict(mod_cpmq)
+pmq_PK$res_cpmq = log10(pmq_PK$pk_cpmq)-pmq_PK$pred_cpmq
+
+par(mfrow=c(1,2), las=1, family='serif', 
+    cex.axis=1.3, cex.lab=1.3)
+plot(jitter(pmq_PK$ASscore,amount = .03), 
+     pmq_PK$res_pmq,xlab='CYP 2D6 activity score',
+     panel.first=grid(),
+     ylab='Model residual (primaquine)')
+abline(h=0, lty=2, lwd=2)
+modAS_res_pmq = lm(res_pmq ~ ASscore,
+                   data = pmq_PK)
+abline(modAS_res_pmq,lwd=3)
+summary(modAS_res_pmq)
+
+plot(jitter(pmq_PK$ASscore,amount = .03), 
+     pmq_PK$res_cpmq,xlab='CYP 2D6 activity score',
+     panel.first=grid(),
+     ylab='Model residual (carboxyprimaquine)')
+abline(h=0, lty=2, lwd=2)
+modAS_res_cpmq = lm(res_cpmq ~ ASscore,data = pmq_PK)
+abline(modAS_res_cpmq,lwd=3)
+summary(modAS_res_cpmq)
+```
+
+
+
+
+## Met-Hb versus weight
+
+```{r}
+mod_methb = gam(methb ~ s(log10(weight),k=3)+
+                  mgkgdose+daysonpq+G6PDdef, 
+                data = pmq_PK)
+xx=summary(mod_methb)
+xx$s.pv
+
+mod_methb2 = gam(methb ~ s(log10(weight), k=3)+
+                   mgkgdose+daysonpq+ASscore+G6PDdef, 
+                 data = pmq_PK)
+summary(mod_methb2)
+
+mod_methb3 = gam(methb ~ s(log10(weight), k=3)+
+                   mgkgdose+as.numeric(ASscore<=0.5)+G6PDdef, 
+                 data = pmq_PK)
+summary(mod_methb3)
+
+
+which.max(pmq_PK$methb>20)
+
+```
+
+
+Hb fall
+```{r}
+pmq_PK$hct_delta = -100*(pmq_PK$hct0 - pmq_PK$hct7)/pmq_PK$hct0
+mod_hct_delta = gam(hct_delta ~ s(log10(weight),k=3)+
+                      mgkgdose+partner_drug+daysonpq+fct, 
+                    data = pmq_PK[pmq_PK$episode==1, ])
+summary(mod_hct_delta)
+```
+
+plot
+```{r metHb}
+par(las=1, mfrow=c(2,2), family='serif', cex.axis=1.3, cex.lab=1.3)
+# layout(mat = matrix(data = c(1,1,2,3),nrow = 2,byrow = T))
+plot(log10(pmq_PK$weight), (pmq_PK$methb),
+     col=cols[pmq_PK$partner_drug+1], xlab='weight (kg)', 
+     ylab = 'Methemoglobin day 7 (%)',
+     panel.first=grid(), xaxt='n')
+axis(1, at = log10(c(1.5,3,10,30)), labels = c(1.5,3,10,30))
+lines(log10(10:90), predict(mod_methb,
+                            data.frame(weight=10:90,mgkgdose=0.5,
+                                       daysonpq=1,G6PDdef=0)),
+      lwd=3)
+lines(log10(10:90), predict(mod_methb,
+                            data.frame(weight=10:90,mgkgdose=1,
+                                       daysonpq=1,G6PDdef=0)),
+      lwd=3,lty=2)
+ind_PM = which(pmq_PK$ASscore<=0.5)
+# points(log10(pmq_PK$weight)[ind_PM],
+#        pmq_PK$methb[ind_PM],pch=16,
+#        col=adjustcolor('black',.7))
+mtext(text = 'A', side = 3, adj = 0,line = 2, cex=1.5)
+legend('topleft', col=cols[1:2], pch=1,
+       legend = c('DHA-piperaquine','Chloroquine'), inset = 0.02)
+
+
+plot(log10(pmq_PK$weight), pmq_PK$hct_delta,
+     col=cols[pmq_PK$partner_drug+1], xlab='weight (kg)', 
+     ylab = 'Change in haematocrit from baseline (%)',
+     panel.first=grid(), xaxt='n')
+axis(1, at = log10(c(1.5,3,10,30)), labels = c(1.5,3,10,30))
+lines(log10(10:90), predict(mod_hct_delta,
+                            data.frame(weight=10:90,mgkgdose=0.5,
+                                       partner_drug=1,
+                                       daysonpq=1,fct=0)),
+      lwd=3)
+lines(log10(10:90), predict(mod_hct_delta,
+                            data.frame(weight=10:90,mgkgdose=1,
+                                       partner_drug=1,
+                                       daysonpq=1,fct=0)),
+      lwd=3,lty=2)
+mtext(text = 'B', side = 3, adj = 0,line = 2, cex=1.5)
+
+plot(log10(pmq_PK$pk_pmq), pmq_PK$methb,
+     col=cols[pmq_PK$partner_drug+1], xlab='Primaquine day 7 (ng/mL)', 
+     ylab = 'Methemoglobin day 7 (%)',
+     panel.first=grid(), xaxt='n')
+m1=MASS::rlm(pmq_PK$methb~log10(pmq_PK$pk_pmq))
+summary(m1)
+abline(m1,lwd=3)
+axis(1, at = seq(0,2.5, length.out = 5), 
+     labels = round(10^seq(0,2.5, length.out = 5)))
+mtext(text = 'C', side = 3, adj = 0,line = 2, cex=1.5)
+
+plot(log10(pmq_PK$pk_cpmq), pmq_PK$methb,
+     col=cols[pmq_PK$partner_drug+1], 
+     xlab='Carboxyprimaquine day 7 (ng/mL)', 
+     ylab = 'Methemoglobin day 7 (%)',
+     panel.first=grid(), xaxt='n')
+m2=MASS::rlm(pmq_PK$methb~log10(pmq_PK$pk_cpmq))
+summary(m2)
+abline(m2,lwd=3)
+axis(1, at = seq(1,3.5, length.out = 5), 
+     labels = round(10^seq(1,3.5, length.out = 5)))
+mtext(text = 'D', side = 3, adj = 0,line = 2, cex=1.5)
+```
+
+
+
