@@ -1184,7 +1184,7 @@ mtext(text = 'C', side = 3, adj = 0,line = 2, cex=1.5)
 
 ```r
 mod_methb = gam(methb ~ s(log10(age),k=3)+
-                  mgkgdose+time_since_LD+daysonpq+G6PDdef, 
+                  mgkgdose+daysonpq+G6PDdef, 
                 data = pmq_PK)
 xx=summary(mod_methb)
 xx$s.pv
@@ -1196,7 +1196,7 @@ xx$s.pv
 
 ```r
 out1=predict(mod_methb,data.frame(age=c(5,30),mgkgdose=1,
-                                  time_since_LD=24,G6PDdef=1,
+                                  G6PDdef=1,
                                   daysonpq=1,patientid=0),
              exclude = "s(patientid)",se.fit = T)
 (out1$fit[1])/(out1$fit[2])
@@ -1204,7 +1204,7 @@ out1=predict(mod_methb,data.frame(age=c(5,30),mgkgdose=1,
 
 ```
 ##         1 
-## 0.8775766
+## 0.8782454
 ```
 
 ```r
@@ -1213,7 +1213,7 @@ out1=predict(mod_methb,data.frame(age=c(5,30),mgkgdose=1,
 
 ```
 ##        1 
-## 1.282289
+## 1.283492
 ```
 
 ```r
@@ -1222,12 +1222,12 @@ out1=predict(mod_methb,data.frame(age=c(5,30),mgkgdose=1,
 
 ```
 ##         1 
-## 0.5904897
+## 0.5908408
 ```
 
 ```r
 mod_methb2 = gam(methb ~ s(log10(age), k=3)+
-                   mgkgdose+time_since_LD+daysonpq+ASscore+G6PDdef, 
+                   mgkgdose+daysonpq+ASscore+G6PDdef, 
                  data = pmq_PK)
 summary(mod_methb2)
 ```
@@ -1238,28 +1238,27 @@ summary(mod_methb2)
 ## Link function: identity 
 ## 
 ## Formula:
-## methb ~ s(log10(age), k = 3) + mgkgdose + time_since_LD + daysonpq + 
-##     ASscore + G6PDdef
+## methb ~ s(log10(age), k = 3) + mgkgdose + daysonpq + ASscore + 
+##     G6PDdef
 ## 
 ## Parametric coefficients:
-##               Estimate Std. Error t value Pr(>|t|)    
-## (Intercept)    4.46975    1.89621   2.357 0.019966 *  
-## mgkgdose       3.15960    0.92759   3.406 0.000886 ***
-## time_since_LD -0.01283    0.06046  -0.212 0.832284    
-## daysonpq      -1.11707    0.76866  -1.453 0.148654    
-## ASscore        0.66504    0.43911   1.515 0.132420    
-## G6PDdef       -0.76374    0.87447  -0.873 0.384132    
+##             Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)   4.1867     1.3424   3.119 0.002250 ** 
+## mgkgdose      3.1357     0.9173   3.419 0.000849 ***
+## daysonpq     -1.1144     0.7657  -1.456 0.148008    
+## ASscore       0.6595     0.4367   1.510 0.133495    
+## G6PDdef      -0.7631     0.8712  -0.876 0.382736    
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
 ## Approximate significance of smooth terms:
-##                 edf Ref.df     F  p-value    
-## s(log10(age)) 1.947  1.997 8.992 0.000226 ***
+##                 edf Ref.df    F  p-value    
+## s(log10(age)) 1.947  1.997 9.05 0.000216 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
-## R-sq.(adj) =  0.196   Deviance explained = 23.8%
-## GCV = 7.8983  Scale est. = 7.4264    n = 133
+## R-sq.(adj) =  0.202   Deviance explained = 23.8%
+## GCV = 7.7766  Scale est. = 7.3703    n = 133
 ```
 
 ```r
@@ -1311,7 +1310,7 @@ Hb fall
 ```r
 pmq_PK$hct_delta = -100*(pmq_PK$hct0 - pmq_PK$hct7)/pmq_PK$hct0
 mod_hct_delta = gam(hct_delta ~ s(log10(age),k=3)+
-                      mgkgdose+partner_drug+time_since_LD+daysonpq+fct+G6PDdef, 
+                      mgkgdose+partner_drug+daysonpq+fct+G6PDdef, 
                     data = pmq_PK[pmq_PK$episode==1, ])
 summary(mod_hct_delta)
 ```
@@ -1323,26 +1322,25 @@ summary(mod_hct_delta)
 ## 
 ## Formula:
 ## hct_delta ~ s(log10(age), k = 3) + mgkgdose + partner_drug + 
-##     time_since_LD + daysonpq + fct + G6PDdef
+##     daysonpq + fct + G6PDdef
 ## 
 ## Parametric coefficients:
-##                Estimate Std. Error t value Pr(>|t|)    
-## (Intercept)    -5.03050    2.33572  -2.154  0.03164 *  
-## mgkgdose       -2.53650    1.43225  -1.771  0.07705 .  
-## partner_drug   -2.96768    0.73000  -4.065 5.40e-05 ***
-## time_since_LD   0.08067    0.06450   1.251  0.21155    
-## daysonpq        3.20811    1.11995   2.865  0.00432 ** 
-## fct            -2.10701    0.49932  -4.220 2.80e-05 ***
-## G6PDdef       -11.94940    1.66945  -7.158 2.29e-12 ***
+##              Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)   -3.0153     1.6916  -1.782  0.07515 .  
+## mgkgdose      -2.4521     1.4313  -1.713  0.08717 .  
+## partner_drug  -2.9879     0.7301  -4.092 4.83e-05 ***
+## daysonpq       3.0930     1.1167   2.770  0.00577 ** 
+## fct           -2.1301     0.4992  -4.267 2.28e-05 ***
+## G6PDdef      -12.0326     1.6689  -7.210 1.60e-12 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
 ## Approximate significance of smooth terms:
 ##               edf Ref.df     F p-value
-## s(log10(age))   1      1 1.074     0.3
+## s(log10(age))   1      1 1.205   0.273
 ## 
-## R-sq.(adj) =   0.12   Deviance explained =   13%
-## GCV = 85.131  Scale est. = 84.065    n = 639
+## R-sq.(adj) =   0.12   Deviance explained = 12.8%
+## GCV = 85.072  Scale est. = 84.14     n = 639
 ```
 
 
@@ -1356,18 +1354,17 @@ pmq_PK$recurrence[pmq_PK$patientid %in% ids_recurrence]=16
 par(las=1, mfrow=c(2,2), family='serif', 
     cex.axis=1.3, cex.lab=1.3)
 plot(log10(pmq_PK$age), pmq_PK$methb,
-     # col=cols[pmq_PK$partner_drug+1],
      xlab='Age (years)', 
      ylab = 'Methemoglobin day 7 (%)',
      panel.first=grid(), xaxt='n',pch=pmq_PK$recurrence)
 axis(1, at = log10(c(1.5,3,10,30)), labels = c(1.5,3,10,30))
 lines(log10(1:60), predict(mod_methb,
                            data.frame(age=1:60,mgkgdose=0.5,daysonpq=1,
-                                      time_since_LD=24,G6PDdef=0)),
+                                      G6PDdef=0)),
       lwd=3)
 lines(log10(1:60), predict(mod_methb,
                            data.frame(age=1:60,mgkgdose=1,daysonpq=1,
-                                      time_since_LD=24,G6PDdef=0)),
+                                      G6PDdef=0)),
       lwd=3,lty=2)
 ind_PM = which(pmq_PK$ASscore<=0.5)
 
@@ -1377,7 +1374,6 @@ legend('topleft', pch=c(1,16),
 
 
 plot(log10(pmq_PK$age), pmq_PK$hct_delta,
-     # col=cols[pmq_PK$partner_drug+1], 
      xlab='Age (years)', 
      ylab = 'Change in hematocrit from baseline (%)',
      panel.first=grid(), xaxt='n',pch=pmq_PK$recurrence)
@@ -1385,17 +1381,16 @@ axis(1, at = log10(c(1.5,3,10,30)), labels = c(1.5,3,10,30))
 lines(log10(1:60), predict(mod_hct_delta,
                            data.frame(age=1:60,mgkgdose=0.5,
                                       partner_drug=1,daysonpq=1,
-                                      time_since_LD=24,fct=0,G6PDdef=0)),
+                                      fct=0,G6PDdef=0)),
       lwd=3)
 lines(log10(1:60), predict(mod_hct_delta,
                            data.frame(age=1:60,mgkgdose=1,
                                       partner_drug=1,daysonpq=1,
-                                      time_since_LD=24,fct=0,G6PDdef=0)),
+                                      fct=0,G6PDdef=0)),
       lwd=3,lty=2)
 mtext(text = 'B', side = 3, adj = 0,line = 2, cex=1.5)
 
 plot(log10(pmq_PK$pk_pmq), pmq_PK$methb,
-     # col=cols[pmq_PK$partner_drug+1], 
      xlab='Primaquine day 7 (ng/mL)', 
      ylab = 'Methemoglobin day 7 (%)',
      panel.first=grid(), xaxt='n',pch=pmq_PK$recurrence)
@@ -1426,7 +1421,6 @@ axis(1, at = seq(0,2.5, length.out = 5),
 mtext(text = 'C', side = 3, adj = 0,line = 2, cex=1.5)
 
 plot(log10(pmq_PK$pk_cpmq), pmq_PK$methb,
-     # col=cols[pmq_PK$partner_drug+1], 
      xlab='Carboxyprimaquine day 7 (ng/mL)', 
      ylab = 'Methemoglobin day 7 (%)',
      panel.first=grid(), xaxt='n',pch=pmq_PK$recurrence)

@@ -407,13 +407,13 @@ mtext(text = 'C', side = 3, adj = 0,line = 2, cex=1.5)
 
 ```{r}
 mod_methb = gam(methb ~ s(log10(age),k=3)+
-                  mgkgdose+time_since_LD+daysonpq+G6PDdef, 
+                  mgkgdose+daysonpq+G6PDdef, 
                 data = pmq_PK)
 xx=summary(mod_methb)
 xx$s.pv
 
 out1=predict(mod_methb,data.frame(age=c(5,30),mgkgdose=1,
-                                  time_since_LD=24,G6PDdef=1,
+                                  G6PDdef=1,
                                   daysonpq=1,patientid=0),
              exclude = "s(patientid)",se.fit = T)
 (out1$fit[1])/(out1$fit[2])
@@ -423,7 +423,7 @@ out1=predict(mod_methb,data.frame(age=c(5,30),mgkgdose=1,
 
 
 mod_methb2 = gam(methb ~ s(log10(age), k=3)+
-                   mgkgdose+time_since_LD+daysonpq+ASscore+G6PDdef, 
+                   mgkgdose+daysonpq+ASscore+G6PDdef, 
                  data = pmq_PK)
 summary(mod_methb2)
 
@@ -442,7 +442,7 @@ Hb fall
 ```{r}
 pmq_PK$hct_delta = -100*(pmq_PK$hct0 - pmq_PK$hct7)/pmq_PK$hct0
 mod_hct_delta = gam(hct_delta ~ s(log10(age),k=3)+
-                      mgkgdose+partner_drug+time_since_LD+daysonpq+fct+G6PDdef, 
+                      mgkgdose+partner_drug+daysonpq+fct+G6PDdef, 
                     data = pmq_PK[pmq_PK$episode==1, ])
 summary(mod_hct_delta)
 ```
@@ -457,18 +457,17 @@ pmq_PK$recurrence[pmq_PK$patientid %in% ids_recurrence]=16
 par(las=1, mfrow=c(2,2), family='serif', 
     cex.axis=1.3, cex.lab=1.3)
 plot(log10(pmq_PK$age), pmq_PK$methb,
-     # col=cols[pmq_PK$partner_drug+1],
      xlab='Age (years)', 
      ylab = 'Methemoglobin day 7 (%)',
      panel.first=grid(), xaxt='n',pch=pmq_PK$recurrence)
 axis(1, at = log10(c(1.5,3,10,30)), labels = c(1.5,3,10,30))
 lines(log10(1:60), predict(mod_methb,
                            data.frame(age=1:60,mgkgdose=0.5,daysonpq=1,
-                                      time_since_LD=24,G6PDdef=0)),
+                                      G6PDdef=0)),
       lwd=3)
 lines(log10(1:60), predict(mod_methb,
                            data.frame(age=1:60,mgkgdose=1,daysonpq=1,
-                                      time_since_LD=24,G6PDdef=0)),
+                                      G6PDdef=0)),
       lwd=3,lty=2)
 ind_PM = which(pmq_PK$ASscore<=0.5)
 
@@ -478,7 +477,6 @@ legend('topleft', pch=c(1,16),
 
 
 plot(log10(pmq_PK$age), pmq_PK$hct_delta,
-     # col=cols[pmq_PK$partner_drug+1], 
      xlab='Age (years)', 
      ylab = 'Change in hematocrit from baseline (%)',
      panel.first=grid(), xaxt='n',pch=pmq_PK$recurrence)
@@ -486,17 +484,16 @@ axis(1, at = log10(c(1.5,3,10,30)), labels = c(1.5,3,10,30))
 lines(log10(1:60), predict(mod_hct_delta,
                            data.frame(age=1:60,mgkgdose=0.5,
                                       partner_drug=1,daysonpq=1,
-                                      time_since_LD=24,fct=0,G6PDdef=0)),
+                                      fct=0,G6PDdef=0)),
       lwd=3)
 lines(log10(1:60), predict(mod_hct_delta,
                            data.frame(age=1:60,mgkgdose=1,
                                       partner_drug=1,daysonpq=1,
-                                      time_since_LD=24,fct=0,G6PDdef=0)),
+                                      fct=0,G6PDdef=0)),
       lwd=3,lty=2)
 mtext(text = 'B', side = 3, adj = 0,line = 2, cex=1.5)
 
 plot(log10(pmq_PK$pk_pmq), pmq_PK$methb,
-     # col=cols[pmq_PK$partner_drug+1], 
      xlab='Primaquine day 7 (ng/mL)', 
      ylab = 'Methemoglobin day 7 (%)',
      panel.first=grid(), xaxt='n',pch=pmq_PK$recurrence)
@@ -508,7 +505,6 @@ axis(1, at = seq(0,2.5, length.out = 5),
 mtext(text = 'C', side = 3, adj = 0,line = 2, cex=1.5)
 
 plot(log10(pmq_PK$pk_cpmq), pmq_PK$methb,
-     # col=cols[pmq_PK$partner_drug+1], 
      xlab='Carboxyprimaquine day 7 (ng/mL)', 
      ylab = 'Methemoglobin day 7 (%)',
      panel.first=grid(), xaxt='n',pch=pmq_PK$recurrence)
